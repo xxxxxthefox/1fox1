@@ -95,7 +95,7 @@ local function isWithinFov(targetPosition)
     local lookVector = camera.CFrame.LookVector
     local dotProduct = direction:Dot(lookVector)
 
-    local fovCosine = math.cos(math.rad(45 / 2))
+    local fovCosine = math.cos(math.rad(90 / 2))
     return dotProduct >= fovCosine
 end
 
@@ -167,7 +167,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
 end)
 
 -- دائرة FOV (مجال الرؤية)
-local fov = 45
+local fov = 90
 local maxTransparency = 0.1
 local FOVring = Drawing.new("Circle")
 FOVring.Thickness = 2
