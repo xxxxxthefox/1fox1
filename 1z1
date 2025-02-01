@@ -1,0 +1,161 @@
+-- esp.lua
+--// المتغيرات
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local cache = {}
+
+-- العظام لرسم الهيكل العظمي
+local bones = {
+    {"Head", "UpperTorso"},
+    {"UpperTorso", "RightUpperArm"},
+    {"RightUpperArm", "RightLowerArm"},
+    {"RightLowerArm", "RightHand"},
+    {"UpperTorso", "LeftUpperArm"},
+    {"LeftUpperArm", "LeftLowerArm"},
+    {"LeftLowerArm", "LeftHand"},
+    {"UpperTorso", "LowerTorso"},
+    {"LowerTorso", "LeftUpperLeg"},
+    {"LeftUpperLeg", "LeftLowerLeg"},
+    {"LeftLowerLeg", "LeftFoot"},
+    {"LowerTorso", "RightUpperLeg"},
+    {"RightUpperLeg", "RightLowerLeg"},
+    {"RightLowerLeg", "RightFoot"}
+}
+
+--// الإعدادات
+local ESP_SETTINGS = {
+    BoxColor = Color3.new(1, 1, 1),
+    NameColor = Color3.new(1, 1, 1),
+    DistanceColor = Color3.new(0, 1, 1),
+    ShowBox = true,
+    ShowName = true,
+    ShowDistance = true,
+    Enabled = true
+}
+
+-- دالة لإنشاء كائن رسم
+local function create(class, properties)
+    local drawing = Drawing.new(class)
+    for property, value in pairs(properties) do
+        drawing[property] = value
+    end
+    return drawing
+end
+
+-- إنشاء ESP للاعب
+local function createEsp(player)
+    local esp = {
+        box = create("Square", {
+            Color = ESP_SETTINGS.BoxColor,
+            Thickness = 1,
+            Filled = false
+        }),
+        name = create("Text", {
+            Color = ESP_SETTINGS.NameColor,
+            Outline = true,
+            Center = true,
+            Size = 14,
+            Font = 2
+        }),
+        distance = create("Text", {
+            Color = ESP_SETTINGS.DistanceColor,
+            Outline = true,
+            Center = true,
+            Size = 13,
+            Font = 2
+        })
+    }
+    cache[player] = esp
+end
+
+-- إزالة ESP عند اختفاء اللاعب
+local function removeEsp(player)
+    local esp = cache[player]
+    if esp then
+        for _, drawing in pairs(esp) do
+            drawing:Remove()
+        end
+        cache[player] = nil
+    end
+end
+
+-- تحديث ESP
+local function updateEsp()
+    for player, esp in pairs(cache) do
+        local character = player.Character
+        if character and ESP_SETTINGS.Enabled then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            local humanoid = character:FindFirstChild("Humanoid")
+            if rootPart and humanoid then
+                local position, onScreen = camera:WorldToViewportPoint(rootPart.Position)
+                if onScreen then
+                    local boxSize = Vector2.new(60, 100)
+                    local boxPosition = Vector2.new(position.X - boxSize.X / 2, position.Y - boxSize.Y / 2)
+
+                    -- عرض الصندوق
+                    if ESP_SETTINGS.ShowBox then
+                        esp.box.Size = boxSize
+                        esp.box.Position = boxPosition
+                        esp.box.Visible = true
+                    else
+                        esp.box.Visible = false
+                    end
+
+                    -- عرض الاسم بالعربية
+                    if ESP_SETTINGS.ShowName then
+                        esp.name.Text = "اللاعب: " .. player.DisplayName
+                        esp.name.Position = Vector2.new(position.X, position.Y - 50)
+                        esp.name.Visible = true
+                    else
+                        esp.name.Visible = false
+                    end
+
+                    -- عرض المسافة
+                    if ESP_SETTINGS.ShowDistance then
+                        local distance = math.floor((localPlayer.Character.HumanoidRootPart.Position - rootPart.Position).Magnitude)
+                        esp.distance.Text = "المسافة: " .. distance .. " متر"
+                        esp.distance.Position = Vector2.new(position.X, position.Y + 40)
+                        esp.distance.Visible = true
+                    else
+                        esp.distance.Visible = false
+                    end
+                else
+                    esp.box.Visible = false
+                    esp.name.Visible = false
+                    esp.distance.Visible = false
+                end
+            else
+                removeEsp(player)
+            end
+        end
+    end
+end
+
+-- تحديث ESP لكل اللاعبين
+RunService.RenderStepped:Connect(function()
+    if ESP_SETTINGS.Enabled then
+        updateEsp()
+    end
+end)
+
+-- عند دخول لاعب جديد
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        wait(1) -- تأخير بسيط حتى يتم تحميل الشخصية
+        createEsp(player)
+    end)
+end)
+
+-- عند خروج لاعب
+Players.PlayerRemoving:Connect(function(player)
+    removeEsp(player)
+end)
+
+-- إنشاء ESP لكل اللاعبين الموجودين بالفعل
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= localPlayer then
+        createEsp(player)
+    end
+end
