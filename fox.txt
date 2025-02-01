@@ -1,0 +1,182 @@
+game.StarterGui:SetCore("SendNotification",  {
+ Title = "🤨";
+ Text = "xxxxxthefox";
+ Icon = "rbxassetid://115469660765124";
+ Duration = 20;
+})
+
+local ScreenGui = Instance.new("ScreenGui")
+local Frame = Instance.new("Frame")
+local UICorner = Instance.new("UICorner")
+local UIStroke = Instance.new("UIStroke")
+local ToggleButton = Instance.new("TextButton")
+local InfoFrame = Instance.new("Frame")
+local InfoText = Instance.new("TextLabel")
+
+ScreenGui.Parent = game.CoreGui
+
+Frame.Parent = ScreenGui
+Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Frame.Size = UDim2.new(0, 300, 0, 400)
+Frame.Position = UDim2.new(0.5, -150, 0.5, -200)
+Frame.Active = true
+Frame.Draggable = true
+Frame.Visible = true
+
+UICorner.Parent = Frame
+UICorner.CornerRadius = UDim.new(0, 10)
+
+UIStroke.Parent = Frame
+UIStroke.Color = Color3.fromRGB(0, 255, 255)
+UIStroke.Thickness = 2
+
+ToggleButton.Parent = ScreenGui
+ToggleButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+ToggleButton.Size = UDim2.new(0, 100, 0, 40)
+ToggleButton.Position = UDim2.new(0, 20, 1, -60)
+ToggleButton.Text = "إظهار / إخفاء القائمة"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 16
+ToggleButton.Font = Enum.Font.SourceSansBold
+
+local ToggleButtonCorner = Instance.new("UICorner", ToggleButton)
+ToggleButtonCorner.CornerRadius = UDim.new(0, 10)
+
+InfoFrame.Parent = Frame
+InfoFrame.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+InfoFrame.Size = UDim2.new(0, 260, 0, 50)
+InfoFrame.Position = UDim2.new(0, 20, 1, -60)
+InfoFrame.Active = true
+InfoFrame.Draggable = true
+
+local InfoFrameCorner = Instance.new("UICorner", InfoFrame)
+InfoFrameCorner.CornerRadius = UDim.new(0, 10)
+
+InfoText.Parent = InfoFrame
+InfoText.BackgroundTransparency = 1
+InfoText.Size = UDim2.new(1, 0, 1, 0)
+InfoText.Text = "ملاحظة: هذا السكربت يعمل على R6 فقط. المطور: xxxxxthefox"
+InfoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+InfoText.TextSize = 14
+InfoText.Font = Enum.Font.SourceSansBold
+InfoText.TextWrapped = true
+
+local function createButton(parent, position, size, text, color)
+    local button = Instance.new("TextButton")
+    button.Parent = parent
+    button.BackgroundColor3 = color or Color3.fromRGB(70, 70, 70)
+    button.Size = size
+    button.Position = position
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 14
+    button.Font = Enum.Font.SourceSansBold
+
+    local textStroke = Instance.new("UIStroke", button)
+    textStroke.Thickness = 2
+    textStroke.Color = Color3.fromRGB(0, 0, 0)
+
+    local buttonCorner = Instance.new("UICorner", button)
+    buttonCorner.CornerRadius = UDim.new(0, 10)
+
+    return button
+end
+
+local buttons = {}
+local animations = {
+    {id = "46785765", name = "اصبر لأريك"},
+    {id = "94190213", name = "بكسر الأرض عليك"},
+    {id = "35154961", name = "رأس مقطوع"},
+    {id = "83994332", name = "يُحكّني شعري"},
+    {id = "216937924", name = "يوجعني رأسي"},
+    {id = "48137861", name = "كيف حالك"},
+    {id = "252557606", name = "جيتك"},
+    {id = "259438880", name = "أنا مجنون"},
+    {id = "182749109", name = "انبطاح", color = Color3.fromRGB(255, 204, 0)},
+    {id = "268490758", name = "تعجبني", color = Color3.fromRGB(255, 204, 0)},
+    {id = "52155728", name = "تراني أعرف كاراتيه", color = Color3.fromRGB(255, 204, 0)},
+}
+
+local punchAnimationIds = {
+    "1348670267", "1348671354", "1348678641", 
+    "1348679542", "1348672373", "1348673372"
+}
+
+local punchIndex = 1
+local punchToggle = false
+
+for i, anim in ipairs(animations) do
+    local row, col
+    local buttonSize = UDim2.new(0, 130, 0, 40)
+
+    row = math.floor((i - 1) / 2)
+    col = (i - 1) % 2
+
+    local position = UDim2.new(0, 20 + col * 140, 0, 10 + row * 50)
+    local button = createButton(Frame, position, buttonSize, anim.name, anim.color)
+    buttons[anim.id] = button
+end
+
+local player = game.Players.LocalPlayer
+local animator
+local playingTrack
+
+local function setupCharacter()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoid = character:WaitForChild("Humanoid")
+    animator = humanoid:FindFirstChild("Animator") or humanoid:WaitForChild("Animator")
+end
+
+setupCharacter()
+
+player.CharacterAdded:Connect(setupCharacter)
+
+local function stopAllAnimations()
+    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+        track:Stop()
+    end
+end
+
+local function playPunchSequence()
+    if not punchToggle then return end
+    local animation = Instance.new("Animation")
+    animation.AnimationId = "rbxassetid://" .. punchAnimationIds[punchIndex]
+    playingTrack = animator:LoadAnimation(animation)
+    playingTrack.Priority = Enum.AnimationPriority.Action
+    playingTrack.Looped = false
+    playingTrack:Play()
+    playingTrack.Stopped:Connect(function()
+        punchIndex = punchIndex % #punchAnimationIds + 1
+        playPunchSequence()
+    end)
+end
+
+for id, button in pairs(buttons) do
+    button.MouseButton1Click:Connect(function()
+        if id == "Punches" then
+            punchToggle = not punchToggle
+            if punchToggle then
+                punchIndex = 1
+                playPunchSequence()
+            else
+                stopAllAnimations()
+            end
+        else
+            if playingTrack and playingTrack.Animation.AnimationId == "rbxassetid://" .. id then
+                playingTrack:Stop()
+                playingTrack = nil
+            else
+                stopAllAnimations()
+                local animation = Instance.new("Animation")
+                animation.AnimationId = "rbxassetid://" .. id
+                playingTrack = animator:LoadAnimation(animation)
+                playingTrack.Priority = Enum.AnimationPriority.Action
+                playingTrack:Play()
+            end
+        end
+    end)
+end
+
+ToggleButton.MouseButton1Click:Connect(function()
+    Frame.Visible = not Frame.Visible
+end)
