@@ -1,0 +1,135 @@
+pcall(function()
+    if not game['Loaded'] then game['Loaded']:Wait() end
+    repeat wait(0.06) until game:GetService('Players').LocalPlayer ~= nil
+
+    local HttpService = game:GetService("HttpService")
+
+    function translate(str, to, from)
+        from = from or 'auto'
+        to = "ar"
+        local url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl="..from.."&tl="..to.."&dt=t&q="..HttpService:UrlEncode(str)
+        local res = request({Url = url, Method = "GET"})
+        local body = HttpService:JSONDecode(res.Body)
+        return body[1][1][1]
+    end
+
+    local Players = game:GetService("Players")
+    local LP = Players.LocalPlayer
+    local StarterGui = game:GetService("StarterGui")
+    local UserInputService = game:GetService("UserInputService")
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "TranslationGui"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = LP:WaitForChild("PlayerGui")
+
+    local translationFrame = Instance.new("Frame")
+    translationFrame.Size = UDim2.new(0.7, 0, 0.7, 0)
+    translationFrame.Position = UDim2.new(0.15, 0, 0.15, 0)
+    translationFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    translationFrame.BackgroundTransparency = 0.8
+    translationFrame.Parent = screenGui
+    translationFrame.Active = true
+    translationFrame.Draggable = true
+
+    -- إضافة شريط العنوان
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, 0, 0, 40)
+    titleLabel.Position = UDim2.new(0, 0, 0, 0)
+    titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 20
+    titleLabel.Text = "🦊 ترجمة الرسائل"
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Parent = translationFrame
+
+    -- زر الإغلاق
+    local closeButton = Instance.new("TextButton")
+    closeButton.Size = UDim2.new(0, 40, 0, 40)
+    closeButton.Position = UDim2.new(1, -50, 0, 0)
+    closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    closeButton.Text = "X"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.TextSize = 18
+    closeButton.Parent = translationFrame
+    closeButton.MouseButton1Click:Connect(function()
+        screenGui:Destroy()  -- إغلاق الواجهة
+    end)
+
+    local messagesFrame = Instance.new("Frame")
+    messagesFrame.Size = UDim2.new(1, 0, 1, -40)
+    messagesFrame.Position = UDim2.new(0, 0, 0, 40)
+    messagesFrame.BackgroundTransparency = 1
+    messagesFrame.Parent = translationFrame
+
+    local messageLabels = {}
+    local maxMessages = 5
+
+    function addMessage(message)
+        local messageLabel = Instance.new("TextLabel")
+        messageLabel.Size = UDim2.new(1, 0, 0, 25)
+        messageLabel.BackgroundTransparency = 1
+        messageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        messageLabel.TextSize = 18
+        messageLabel.Font = Enum.Font.GothamBold
+        messageLabel.TextStrokeTransparency = 0.9
+        messageLabel.Text = message
+        messageLabel.Parent = messagesFrame
+
+        table.insert(messageLabels, messageLabel)
+        if #messageLabels > maxMessages then
+            messageLabels[1]:Destroy()
+            table.remove(messageLabels, 1)
+        end
+        for i, label in ipairs(messageLabels) do
+            label.Position = UDim2.new(0, 0, 0, (i - 1) * 30)
+        end
+    end
+
+    function handleChatMessage(msg, senderName)
+        local translatedText = translate(msg)
+        addMessage(senderName .. ": " .. translatedText)
+    end
+
+    local chatEvents = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+    if chatEvents then
+        chatEvents.OnMessageDoneFiltering.OnClientEvent:Connect(function(messageData)
+            handleChatMessage(messageData.Message, messageData.FromSpeaker)
+        end)
+    end
+
+    local function newChatMessage(player, message)
+        handleChatMessage(message, player.Name)
+    end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        player.Chatted:Connect(function(msg)
+            newChatMessage(player, msg)
+        end)
+    end
+
+    Players.PlayerAdded:Connect(function(player)
+        player.Chatted:Connect(function(msg)
+            newChatMessage(player, msg)
+        end)
+    end)
+
+    local CBar = LP.PlayerGui:WaitForChild("Chat").Frame.ChatBarParentFrame.Frame.BoxFrame.Frame.ChatBar
+    local CRemote = game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest
+
+    CBar.FocusLost:Connect(function(Enter)
+        if Enter and CBar.Text ~= "" then
+            local Message = translate(CBar.Text)
+            CBar.Text = ""
+            CRemote:FireServer(Message, "All")
+        end
+    end)
+end)
+
+game.StarterGui:SetCore("SendNotification",  {
+    Title = "ترجمه الرسال عربي";
+    Text = "xxxxxthefox";
+    Icon = "rbxassetid://115469660765124";
+    Duration = 20;
+})
