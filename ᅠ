@@ -6,11 +6,17 @@ pcall(function()
 
     function translate(str, to, from)
         from = from or 'auto'
-        to = "en" -- تغيير اللغة إلى الإنجليزية
-        local url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl="..from.."&tl="..to.."&dt=t&q="..HttpService:UrlEncode(str)
+        to = "en" -- الترجمة إلى الإنجليزية
+        local url = "https://translate.googleapis.com/translate_a/single?client=webapp&sl="..from.."&tl="..to.."&dt=t&dt=bd&dt=rm&dt=ss&dt=at&q="..HttpService:UrlEncode(str)
         local res = request({Url = url, Method = "GET"})
         local body = HttpService:JSONDecode(res.Body)
-        return body[1][1][1]
+        
+        local translatedText = {}
+        for i, part in ipairs(body[1]) do
+            table.insert(translatedText, part[1])
+        end
+        
+        return table.concat(translatedText, " ")
     end
 
     local Players = game:GetService("Players")
@@ -32,18 +38,16 @@ pcall(function()
     translationFrame.Active = true
     translationFrame.Draggable = true
 
-    -- Title Bar
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Size = UDim2.new(1, 0, 0, 40)
     titleLabel.Position = UDim2.new(0, 0, 0, 0)
     titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
     titleLabel.TextSize = 20
-    titleLabel.Text = "🦊 Translation of the letter "
+    titleLabel.Text = "🦊 Translation of the letter"
     titleLabel.Font = Enum.Font.GothamBold
     titleLabel.Parent = translationFrame
 
-    -- Close Button
     local closeButton = Instance.new("TextButton")
     closeButton.Size = UDim2.new(0, 40, 0, 40)
     closeButton.Position = UDim2.new(1, -50, 0, 0)
@@ -117,19 +121,23 @@ pcall(function()
 
     local CBar = LP.PlayerGui:WaitForChild("Chat").Frame.ChatBarParentFrame.Frame.BoxFrame.Frame.ChatBar
     local CRemote = game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest
+    local lastMessage = ""
 
     CBar.FocusLost:Connect(function(Enter)
         if Enter and CBar.Text ~= "" then
-            local Message = translate(CBar.Text, "en") -- تغيير الترجمة إلى الإنجليزية
-            CBar.Text = ""
-            CRemote:FireServer(Message, "All")
+            local Message = translate(CBar.Text, "en")
+            if Message ~= lastMessage then
+                lastMessage = Message
+                CBar.Text = ""
+                CRemote:FireServer(Message, "All")
+            end
         end
     end)
 end)
 
 game.StarterGui:SetCore("SendNotification", {
     Title = "fox / xxxxxthefox";
-    Text = "🫠👋";
+    Text = "😇";
     Icon = "rbxassetid://115469660765124";
     Duration = 20;
 })
