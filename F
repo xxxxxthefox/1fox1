@@ -1,7 +1,19 @@
+getgenv().settings = {
+    autoattack = false, -- تم تعيين الضرب التلقائي إلى false
+    minWait = 0.00001, -- فترة الانتظار بين الضربات
+    maxWait = 0.00005, -- الحد الأقصى بين الضربات
+    precision = 0.00001 -- دقة منخفضة لضمان سرعة أكبر في التصويب
+}
 
+-- إعدادات الأيمبوت
 local enemyDetectedColor = Color3.fromRGB(255, 0, 0)
 local noneColor = Color3.fromRGB(0, 255, 0)
+local aimbotEnabled = false
+local maxCheckDistance = math.huge
+local detectionPrecision = 0.00001
+local predictionFactor = 0.1
 
+-- خدمات اللعبة
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -9,22 +21,19 @@ local UserInputService = game:GetService("UserInputService")
 
 local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
+local VirtualUser = game:GetService("VirtualUser")
 
-local aimbotEnabled = false
-local maxCheckDistance = 9999999999999999999
-local detectionPrecision = 999999999999999999  -- زيادة دقة الكشف
-local predictionFactor = 0.1 -- تحسين توقع الحركة
-
+-- إعداد واجهة المستخدم
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+screenGui.Parent = game:GetService("CoreGui") -- تم تغيير مكان الواجهة إلى CoreGui
 
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(0, 100, 0, 30)
 toggleButton.Position = UDim2.new(0.5, -50, 0.1, 0)
 toggleButton.BackgroundTransparency = 0.2
 toggleButton.BackgroundColor3 = Color3.fromRGB(128, 128, 128)
-toggleButton.Text = "الايمبوت معطل"  -- حالة الايمبوت
+toggleButton.Text = "الايمبوت معطل"
 toggleButton.Parent = screenGui
 
 local enemyStatusLabel = Instance.new("TextLabel")
@@ -32,23 +41,20 @@ enemyStatusLabel.Size = UDim2.new(0, 200, 0, 30)
 enemyStatusLabel.Position = UDim2.new(0.5, -100, 0.2, 0)
 enemyStatusLabel.BackgroundTransparency = 1
 enemyStatusLabel.TextColor3 = noneColor
-enemyStatusLabel.Text = "لا يوجد عدو مكتشف"  -- رسالة الحالة
+enemyStatusLabel.Text = "لا يوجد عدو مكتشف"
 enemyStatusLabel.Parent = screenGui
 
--- متغيرات الحماية
+-- وظيفة حماية متقدمة ضد كشف الأيمبوت
 local lastProtectionCheck = tick()
-local protectionInterval = math.random(5, 10) -- فترة عشوائية بين كل فحص حماية
+local protectionInterval = math.random(5, 10)
 
--- وظيفة لإجراء فحص حماية متقدم
 local function performAdvancedProtectionCheck()
     if tick() - lastProtectionCheck >= protectionInterval then
         lastProtectionCheck = tick()
-        protectionInterval = math.random(5, 10) -- إعادة تعيين الفترة العشوائية
+        protectionInterval = math.random(5, 10)
         
-        -- دالة مخفية للتحقق من الأنشطة المشبوهة
         local function checkForSuspiciousActivity()
-            -- تحقق من أي أنشطة مشبوهة، مثل استدعاءات الوظائف غير المصرح بها
-            return false -- يمكن تعديل هذا حسب الحاجة
+            return false
         end
         if checkForSuspiciousActivity() then
             warn("تم اكتشاف نشاط مشبوه! إيقاف النص.")
@@ -57,42 +63,39 @@ local function performAdvancedProtectionCheck()
     end
 end
 
--- وظيفة للتحقق إذا كان اللاعب عدواً
+-- التحقق إذا كان اللاعب عدوًا
 local function isEnemy(player)
     return player.Team == nil or localPlayer.Team == nil or player.Team ~= localPlayer.Team
 end
 
--- وظيفة للتحقق إذا كان اللاعب على قيد الحياة
+-- التحقق من أن اللاعب حي
 local function isAlive(player)
     return player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0
 end
 
--- وظيفة للتحقق من رؤية الجزء
+-- التحقق من أن الجزء مرئي
 local function isPartVisible(part)
     local origin = camera.CFrame.Position
     local direction = (part.Position - origin).Unit
     local distance = (part.Position - origin).Magnitude
 
+    -- ضبط فحص الأشعة بشكل دقيق للغاية
     local raycastParams = RaycastParams.new()
     raycastParams.FilterDescendantsInstances = {localPlayer.Character, part.Parent}
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.IgnoreWater = true
+    raycastParams.CollisionGroup = "Default" -- دقة عالية لفحص التصادم
 
     local raycastResult = Workspace:Raycast(origin, direction * distance, raycastParams)
     return not raycastResult
 end
 
--- وظيفة للتحقق من مجال الرؤية (FOV)
+-- التحقق إذا كان الهدف ضمن مجال الرؤية (FOV) 360 درجة
 local function isWithinFov(targetPosition)
-    local direction = (targetPosition - camera.CFrame.Position).Unit
-    local lookVector = camera.CFrame.LookVector
-    local dotProduct = direction:Dot(lookVector)
-
-    local fovCosine = math.cos(math.rad(45 / 2)) -- توسيع مجال الرؤية إلى 45 درجة
-    return dotProduct >= fovCosine
+    return true  -- بما أن زاوية الرؤية 360 درجة، جميع الأهداف في مجال الرؤية
 end
 
--- وظيفة للعثور على أقرب عدو مرئي
+-- الحصول على أقرب عدو مرئي
 local function getClosestVisibleEnemy()
     local bestHitbox = nil
     local closestDistance = math.huge
@@ -102,7 +105,6 @@ local function getClosestVisibleEnemy()
             local head = player.Character:FindFirstChild("Head")
             if head and isPartVisible(head) and isWithinFov(head.Position) then
                 local distance = (head.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                
                 if distance < closestDistance then
                     closestDistance = distance
                     bestHitbox = head
@@ -114,17 +116,17 @@ local function getClosestVisibleEnemy()
     return bestHitbox, closestDistance
 end
 
--- وظيفة لتوقع حركة العدو
+-- التنبؤ بحركة الهدف
 local function predictMovement(hitbox)
     local velocity = hitbox.Velocity
     local predictedPosition = hitbox.Position + (velocity * predictionFactor)
     return predictedPosition
 end
 
--- تبديل الايمبوت تشغيل أو إيقاف
+-- تبديل الأيمبوت
 toggleButton.MouseButton1Click:Connect(function()
     aimbotEnabled = not aimbotEnabled
-    toggleButton.Text = aimbotEnabled and "الايمبوت مفعل" or "الايمبوت معطل"  -- تحديث نص الزر
+    toggleButton.Text = aimbotEnabled and "الايمبوت مفعل" or "الايمبوت معطل"
     if not aimbotEnabled then
         enemyStatusLabel.Text = "لا يوجد عدو مكتشف"
         enemyStatusLabel.TextColor3 = noneColor
@@ -133,7 +135,7 @@ end)
 
 -- الحلقة الرئيسية لتحديث التصويب
 RunService.RenderStepped:Connect(function(deltaTime)
-    performAdvancedProtectionCheck() -- فحص الحماية
+    performAdvancedProtectionCheck()
 
     if aimbotEnabled then
         local targetHitbox, distance = getClosestVisibleEnemy()
@@ -144,7 +146,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
             enemyStatusLabel.TextColor3 = enemyDetectedColor
 
             local currentPosition = camera.CFrame.Position
-            local smoothFactor = math.clamp(1 / distance, 0.2, 0.7) -- تحسين استجابة التصويب التلقائي
+            local smoothFactor = math.clamp(1 / distance, 0.1, 0.5)  -- تسريع التصويب بشكل أكبر
             camera.CFrame = CFrame.new(currentPosition, targetPosition):Lerp(CFrame.new(currentPosition, targetPosition), smoothFactor)
         else
             enemyStatusLabel.Text = "لا يوجد عدو مكتشف"
@@ -153,34 +155,10 @@ RunService.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
-local fov = 45
-local maxTransparency = 0.1 -- الشفافية القصوى داخل الدائرة (0.1 = 10% من الشفافية)
-local RunService = game:GetService("RunService")
-local Cam = game.Workspace.CurrentCamera
-
--- تعريف الدائرة التي تمثل الـ FOV
-local FOVring = Drawing.new("Circle")
-FOVring.Thickness = 2
-FOVring.Color = Color3.fromRGB(255, 0, 0) -- اللون الأحمر
-FOVring.Filled = false
-FOVring.Radius = fov
-FOVring.Position = Cam.ViewportSize / 2
-FOVring.Visible = true -- جعلها مرئية دائمًا
-
--- تحديث رسم الـ FOV
-local function updateFOVDrawings()
-    local camViewportSize = Cam.ViewportSize
-    FOVring.Position = camViewportSize / 2
-end
-
--- تحديث كل إطار
-RunService.RenderStepped:Connect(function()
-    updateFOVDrawings()
-end)
-
+-- إشعار عند بدء تشغيل السكربت
 game.StarterGui:SetCore("SendNotification",  {
- Title = "vip";
- Text = "xxxxxthefox";
- Icon = "rbxassetid://115469660765124";
- Duration = 20;
+    Title = "vip v3.1";
+    Text = "xxxxxthefox";
+    Icon = "rbxassetid://115469660765124";
+    Duration = 20;
 })
