@@ -1,9 +1,8 @@
--- إعدادات الضرب التلقائي
 getgenv().settings = {
     autoattack = true,
-    minWait = 0.0001, -- فترة الانتظار بين الضربات أصبحت أسرع
-    maxWait = 0.0001, -- الحد الأقصى بين الضربات
-    precision = 0.0001 -- دقة منخفضة لضمان سرعة أكبر
+    minWait = 0.00001, -- فترة الانتظار بين الضربات
+    maxWait = 0.00005, -- الحد الأقصى بين الضربات
+    precision = 0.00001 -- دقة منخفضة لضمان سرعة أكبر في التصويب
 }
 
 -- إعدادات الأيمبوت
@@ -11,7 +10,7 @@ local enemyDetectedColor = Color3.fromRGB(255, 0, 0)
 local noneColor = Color3.fromRGB(0, 255, 0)
 local aimbotEnabled = false
 local maxCheckDistance = math.huge
-local detectionPrecision = 0.05
+local detectionPrecision = 0.00001
 local predictionFactor = 0.1
 
 -- خدمات اللعبة
@@ -80,23 +79,20 @@ local function isPartVisible(part)
     local direction = (part.Position - origin).Unit
     local distance = (part.Position - origin).Magnitude
 
+    -- ضبط فحص الأشعة بشكل دقيق للغاية
     local raycastParams = RaycastParams.new()
     raycastParams.FilterDescendantsInstances = {localPlayer.Character, part.Parent}
     raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
     raycastParams.IgnoreWater = true
+    raycastParams.CollisionGroup = "Default" -- دقة عالية لفحص التصادم
 
     local raycastResult = Workspace:Raycast(origin, direction * distance, raycastParams)
     return not raycastResult
 end
 
--- التحقق إذا كان الهدف ضمن مجال الرؤية (FOV)
+-- التحقق إذا كان الهدف ضمن مجال الرؤية (FOV) 360 درجة
 local function isWithinFov(targetPosition)
-    local direction = (targetPosition - camera.CFrame.Position).Unit
-    local lookVector = camera.CFrame.LookVector
-    local dotProduct = direction:Dot(lookVector)
-
-    local fovCosine = math.cos(math.rad(90 / 2))
-    return dotProduct >= fovCosine
+    return true  -- بما أن زاوية الرؤية 360 درجة، جميع الأهداف في مجال الرؤية
 end
 
 -- الحصول على أقرب عدو مرئي
@@ -150,7 +146,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
             enemyStatusLabel.TextColor3 = enemyDetectedColor
 
             local currentPosition = camera.CFrame.Position
-            local smoothFactor = math.clamp(1 / distance, 0.2, 0.7)
+            local smoothFactor = math.clamp(1 / distance, 0.1, 0.5)  -- تسريع التصويب بشكل أكبر
             camera.CFrame = CFrame.new(currentPosition, targetPosition):Lerp(CFrame.new(currentPosition, targetPosition), smoothFactor)
 
             -- ضرب تلقائي عند التصويب على الهدف
@@ -166,30 +162,9 @@ RunService.RenderStepped:Connect(function(deltaTime)
     end
 end)
 
--- دائرة FOV (مجال الرؤية)
-local fov = 90
-local maxTransparency = 0.1
-local FOVring = Drawing.new("Circle")
-FOVring.Thickness = 2
-FOVring.Color = Color3.fromRGB(255, 0, 0)
-FOVring.Filled = false
-FOVring.Radius = fov
-FOVring.Position = camera.ViewportSize / 2
-FOVring.Visible = true
-
--- تحديث دائرة FOV
-local function updateFOVDrawings()
-    local camViewportSize = camera.ViewportSize
-    FOVring.Position = camViewportSize / 2
-end
-
-RunService.RenderStepped:Connect(function()
-    updateFOVDrawings()
-end)
-
 -- إشعار عند بدء تشغيل السكربت
 game.StarterGui:SetCore("SendNotification",  {
-    Title = "vip";
+    Title = "vip 1.4";
     Text = "xxxxxthefox";
     Icon = "rbxassetid://115469660765124";
     Duration = 20;
